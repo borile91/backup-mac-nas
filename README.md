@@ -128,18 +128,6 @@ segnaposto e non si possono leggere: restic li segnala con
 `resource deadlock avoided`. Sono esclusi di proposito — stanno già nel cloud.
 Se Desktop e Documenti sono sincronizzati con iCloud, vale anche per loro.
 
-## Sicurezza
-
-- La configurazione contiene la password del NAS in chiaro: sta fuori dal
-  repository, in `~/.config/backup-mac-nas/config.env` con permessi `600`.
-- **Il cruscotto non ha autenticazione** e permette di sfogliare e ripristinare
-  file: va tenuto in rete locale, mai esposto su internet.
-
-## Licenza
-
-[MIT](LICENSE). Le icone del cruscotto sono
-[Font Awesome Free](https://fontawesome.com/license/free) (CC BY 4.0).
-
 ## Aggiornamenti
 
 `bin/aggiorna.sh` porta le novità da GitHub con un `git pull`, e l'installer lo
@@ -153,3 +141,15 @@ storia è divergente si ferma e avvisa. Quando cambia il cruscotto lo riavvia da
 solo. Il registro sta in `<DIR_LOG>/aggiornamenti.log`.
 
 Per aggiornare subito: `bin/aggiorna.sh`
+
+## Sicurezza
+
+- La configurazione contiene la password del NAS in chiaro: sta fuori dal
+  repository, in `~/.config/backup-mac-nas/config.env` con permessi `600`.
+- **Il cruscotto non ha autenticazione** e permette di sfogliare e ripristinare
+  file: va tenuto in rete locale, mai esposto su internet.
+
+## Licenza
+
+[MIT](LICENSE). Le icone del cruscotto sono
+[Font Awesome Free](https://fontawesome.com/license/free) (CC BY 4.0).
