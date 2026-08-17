@@ -16,6 +16,9 @@ fretta, mentre restic conserva i dati in modo versionato e compresso.
 - **Cruscotto web** in rete locale: stato dei due backup, storico, snapshot,
   e un albero del disco per verificare se un file è nel backup, ripristinarlo
   o escluderlo da Time Machine.
+- **Più Mac nello stesso cruscotto, senza server centrale**: se più macchine
+  salvano nello stesso repository, ognuna vede lo stato e lo storico di tutte
+  le altre — anche quando sono spente. Vedi [Più Mac](#più-mac).
 - **Notifiche push** (via Home Assistant, facoltative) quando un backup
   fallisce e quando torna a funzionare. Silenzio quando va tutto bene.
 - **Watchdog**: avvisa se non c'è un backup riuscito da più di 30 ore — copre
@@ -79,6 +82,27 @@ I job installati:
 | 09:00 | watchdog | crontab di root |
 | 05:00 | Time Machine | LaunchAgent utente |
 | sempre | cruscotto web | LaunchAgent utente |
+
+## Più Mac
+
+Installa lo stesso sistema su ogni Mac puntando **allo stesso repository**
+(stesso `REPO_PERCORSO` e stessa password di cifratura): restic tiene separate
+le macchine in base al loro hostname, deduplicando i dati in comune.
+
+Da quel momento il cruscotto di *qualsiasi* macchina mostra una scheda per
+ognuna, con l'ultimo backup, la durata, quanto ha caricato e un avviso se
+qualcuna è rimasta indietro. Lo storico diventa unico, con la colonna della
+macchina.
+
+Non serve un server centrale e le macchine non devono parlarsi: ogni snapshot
+porta con sé hostname, orario di inizio e fine e quanto è stato caricato, per
+cui **lo storico delle altre si ricostruisce dal repository condiviso**. Ne
+basta una accesa — quella da cui guardi — perché il resto è già sul NAS.
+
+Un limite da conoscere: un backup **fallito** non lascia snapshot, quindi delle
+macchine remote non si vede l'errore ma il silenzio, cioè "nessun backup
+riuscito da N ore" nella scheda. Ogni macchina però avvisa per conto suo con le
+notifiche e il watchdog, quindi l'errore non passa inosservato dove succede.
 
 ## Alcune scelte spiegate
 

@@ -326,6 +326,45 @@ def epoch_da_data(testo):
         return None
 
 
+def _leggibile(byte):
+    for unita in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if byte < 1024 or unita == "TiB":
+            return f"{byte:.3f} {unita}" if unita not in ("B", "KiB") else f"{byte:.0f} {unita}"
+        byte /= 1024
+    return ""
+
+
+def da_snapshot(s):
+    """Riga di storico ricavata da uno snapshot restic.
+
+    Ha lo stesso formato delle righe che la macchina locale scrive nel proprio
+    TSV, cosi' le due fonti si possono mescolare: per le macchine remote questa
+    e' l'unica fonte disponibile, ed e' sufficiente perche' restic registra nel
+    summary inizio, fine e quanto ha caricato.
+    """
+    riepilogo = s.get("summary", {}) or {}
+    inizio_iso = riepilogo.get("backup_start") or s.get("time")
+    fine_iso = riepilogo.get("backup_end")
+    inizio_ep, fine_ep = epoch_iso(inizio_iso), epoch_iso(fine_iso)
+    durata = ""
+    if inizio_ep and fine_ep:
+        secondi = int(fine_ep - inizio_ep)
+        durata = f"{secondi // 3600}:{secondi % 3600 // 60:02d}:{secondi % 60:02d}" \
+            if secondi >= 3600 else f"{secondi // 60}:{secondi % 60:02d}"
+    return {
+        "inizio": (inizio_iso or "")[:16].replace("T", " "),
+        "inizio_epoch": inizio_ep,
+        # uno snapshot esiste solo se il backup e' andato a buon fine
+        "esito": "0",
+        "durata": durata,
+        "file_nuovi": str(riepilogo.get("files_new", "") or ""),
+        "caricati": _leggibile(riepilogo.get("data_added", 0)) if riepilogo.get("data_added") else "",
+        "processati": f"{riepilogo.get('total_files_processed', '')} files",
+        "snapshot": s.get("short_id", ""),
+        "macchina": s.get("hostname", ""),
+    }
+
+
 def stato():
     pid = pid_backup()
     prog = progresso() if pid else None
@@ -335,12 +374,13 @@ def stato():
         letti = _cache["letti"]
         errore = _cache["errore"]
 
-    # una card sola per questa macchina: prima ne uscivano due perche' il nome
-    # scritto a mano ("Mac mini") non coincideva con l'hostname degli snapshot
-    # ("macmini"), e il ciclo sotto lo trattava come una seconda macchina.
+    # una card sola per questa macchina: il nome dalla configurazione non
+    # coincide con l'hostname degli snapshot, quindi il confronto va fatto
+    # sull'hostname, altrimenti la macchina locale comparirebbe due volte
     io = socket.gethostname()
     for r in st:
         r["inizio_epoch"] = epoch_da_data(r.get("inizio"))
+
     macchine = [{
         "nome": QUESTA_MACCHINA,
         "host": io,
@@ -352,15 +392,29 @@ def stato():
         "ultimo": st[0] if st else None,
         "snapshot": len([s for s in snap if s.get("hostname") == io]),
     }]
+    # Le altre macchine che salvano nello stesso repository compaiono da sole:
+    # ogni snapshot porta hostname, inizio, fine e quanto e' stato caricato, per
+    # cui il loro storico si ricostruisce da qui senza che siano accese e senza
+    # doversi scambiare niente. Quello che manca sono i loro run *falliti*, che
+    # non lasciano snapshot: si vedono come silenzio (vedi "ferma da").
     for host in sorted({s.get("hostname", "?") for s in snap}):
-        if host and host != io:
-            suoi = [s for s in snap if s.get("hostname") == host]
-            macchine.append({
-                "nome": host, "host": host, "locale": False,
-                "in_corso": False, "pid": None, "utente": None,
-                "progresso": None, "snapshot": len(suoi),
-                "ultimo": {"inizio": suoi[-1].get("time", "")[:16].replace("T", " ")},
-            })
+        if not host or host == io:
+            continue
+        suoi = sorted((s for s in snap if s.get("hostname") == host),
+                      key=lambda x: x.get("time", ""))
+        ultimo = da_snapshot(suoi[-1])
+        macchine.append({
+            "nome": host, "host": host, "locale": False,
+            "in_corso": False, "pid": None, "utente": None, "progresso": None,
+            "snapshot": len(suoi), "ultimo": ultimo,
+        })
+
+    # allarme silenzio: vale per tutte, locale compresa
+    adesso = time.time()
+    for m in macchine:
+        u = m.get("ultimo") or {}
+        ep = u.get("inizio_epoch")
+        m["ore_silenzio"] = round((adesso - ep) / 3600) if ep else None
 
     tm_ultimo = tm_ultimo_run()
     if tm_ultimo:
@@ -388,8 +442,27 @@ def stato():
         } for s in sorted(snap, key=lambda x: x.get("time", ""), reverse=True)[:12]],
         "snapshot_letti": time.strftime("%H:%M", time.localtime(letti)) if letti else None,
         "snapshot_errore": errore,
-        "storico": st,
+        "storico": storico_unito(st, snap, io),
+        "piu_macchine": len({s.get("hostname") for s in snap if s.get("hostname")} | {io}) > 1,
     }
+
+
+def storico_unito(storico_locale, snap, io):
+    """Storico di tutte le macchine in un'unica tabella, ordinato per data.
+
+    Della macchina locale si usa il file TSV, che contiene anche i run falliti;
+    delle altre si usano gli snapshot, unica traccia che lasciano nel repo.
+    """
+    righe = []
+    for r in storico_locale:
+        r = dict(r)
+        r["macchina"] = io
+        righe.append(r)
+    for s in snap:
+        if s.get("hostname") and s.get("hostname") != io:
+            righe.append(da_snapshot(s))
+    righe.sort(key=lambda r: r.get("inizio_epoch") or 0, reverse=True)
+    return righe[:20]
 
 
 def epoch_iso(testo):
@@ -699,6 +772,12 @@ let percorsoAttuale = '/';
 
 function pill(m) {
   if (m.in_corso) return '<span class="pill corso">in corso</span>';
+  if (!m.locale) {
+    if (m.ore_silenzio == null) return '<span class="pill mai">mai eseguito</span>';
+    return m.ore_silenzio >= 30
+      ? '<span class="pill ko">in ritardo</span>'
+      : '<span class="pill ok">aggiornata</span>';
+  }
   const e = m.ultimo && m.ultimo.esito;
   if (e === undefined) return '<span class="pill mai">mai eseguito</span>';
   if (e === '0' || e === '3') return '<span class="pill ok">ultimo ok</span>';
@@ -713,8 +792,15 @@ function dato(et, vl) {
 // una card per macchina, con dentro entrambi i backup: prima Time Machine
 // stava in una card separata e sembrava un'altra macchina
 function macchina(m, s) {
-  let h = '<div class="card"><div class="riga"><span class="nome">' + m.nome + '</span>' + pill(m) + '</div>' +
-    '<div class="et-sez">restic → NAS</div>';
+  let h = '<div class="card"><div class="riga"><span class="nome">' + m.nome +
+    (m.locale ? '' : '<span class="sub"> — altra macchina</span>') + '</span>' + pill(m) + '</div>';
+  // oltre 30 ore senza un backup riuscito: per le macchine remote e' l'unico
+  // segnale disponibile, visto che i loro fallimenti non lasciano snapshot
+  if (!m.in_corso && m.ore_silenzio != null && m.ore_silenzio >= 30) {
+    h += '<div class="avviso" style="margin-top:8px">nessun backup riuscito da ' +
+      (m.ore_silenzio >= 48 ? Math.round(m.ore_silenzio / 24) + ' giorni' : m.ore_silenzio + ' ore') + '</div>';
+  }
+  h += '<div class="et-sez">restic → NAS</div>';
   if (m.in_corso && m.progresso) {
     const p = m.progresso;
     h += '<div class="barra"><div style="width:' + p.perc + '%"></div></div>';
@@ -983,6 +1069,7 @@ async function carica() {
           ['dimensione', r => r.gb + ' GB'],
           ['file', r => Number(r.file).toLocaleString('it'), 'secondaria']]);
     $('storico').innerHTML = tabella(s.storico, [
+      ...(s.piu_macchine ? [['macchina','macchina']] : []),
       ['quando', r => quando(r.inizio_epoch, r.inizio)],
       ['esito', r => esitoLeggibile(r.esito)],
       ['durata','durata'], ['caricati','caricati'],
