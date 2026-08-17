@@ -1,0 +1,48 @@
+# Percorsi esclusi dal backup, uno per riga (formato --exclude-file di restic).
+# Le righe che iniziano con # sono commenti.
+#
+# La prima parte e' roba di sistema che non ha senso salvare: si rigenera da
+# sola e cambia in continuazione. La seconda parte e' facoltativa: adattala.
+
+# --- sistema e volumi virtuali ----------------------------------------------
+/System
+/Volumes
+/dev
+/private/var/vm
+/private/var/db
+/private/var/folders
+/private/tmp
+/.vol
+/.Trashes
+/cores
+/.fseventsd
+/.Spotlight-V100
+/.DocumentRevisions-V100
+/.TemporaryItems
+
+# --- cache: si ricostruiscono da sole ---------------------------------------
+/Library/Caches
+/Users/*/Library/Caches
+/Users/*/Library/Containers/*/Data/Library/Caches
+/Library/Developer/CoreSimulator/Caches
+/private/var/root/Library/Caches
+**/.Trash
+
+# --- iCloud Drive: i file stanno gia' nel cloud, e quelli non scaricati non
+#     sono leggibili (danno "resource deadlock avoided") ---------------------
+/Users/*/Library/Mobile Documents
+/Users/*/Library/Application Support/CloudDocs
+
+# --- immagini disco di macchine virtuali e container: enormi e sempre diverse,
+#     ogni backup ne ricaricherebbe decine di GB ----------------------------
+/Users/*/Library/Containers/com.utmapp.UTM
+/Users/*/Library/Containers/com.docker.docker
+/Users/*/Library/Application Support/Claude/vm_bundles
+
+# --- backup dei dispositivi iOS: pesanti e ricreabili ------------------------
+/Users/*/Library/Application Support/MobileSync/Backup
+
+# --- facoltative: togli il # per escluderle ---------------------------------
+# /Users/*/Downloads
+# /Users/*/Movies
+# /Users/*/Pictures

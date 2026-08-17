@@ -1,0 +1,7 @@
+# la configurazione contiene la password del NAS: non va versionata
+config.env
+*.local
+
+.DS_Store
+__pycache__/
+*.pyc
