@@ -43,7 +43,10 @@ for necessaria in NAS_HOST NAS_UTENTE NAS_PASSWORD REPO_PERCORSO REPO_PASSWORD_F
 done
 
 # --- valori con un default sensato ------------------------------------------
-UTENTE_BACKUP="${UTENTE_BACKUP:-$(id -un)}"
+# sotto sudo `id -un` e' root: serve l'utente vero, altrimenti log e cache
+# finirebbero in /Users/root e il controllo dell'Accesso completo al disco
+# darebbe un falso negativo
+UTENTE_BACKUP="${UTENTE_BACKUP:-${SUDO_USER:-$(id -un)}}"
 HOME_UTENTE="${HOME_UTENTE:-/Users/$UTENTE_BACKUP}"
 NOME_MACCHINA="${NOME_MACCHINA:-$(scutil --get ComputerName 2>/dev/null || hostname)}"
 DIR_LOG="${DIR_LOG:-$HOME_UTENTE/Library/Logs/backup-mac-nas}"

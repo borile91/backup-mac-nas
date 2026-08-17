@@ -139,3 +139,17 @@ Se Desktop e Documenti sono sincronizzati con iCloud, vale anche per loro.
 
 [MIT](LICENSE). Le icone del cruscotto sono
 [Font Awesome Free](https://fontawesome.com/license/free) (CC BY 4.0).
+
+## Aggiornamenti
+
+`bin/aggiorna.sh` porta le novità da GitHub con un `git pull`, e l'installer lo
+programma ogni giorno alle 04:30. Su più Mac significa correggere una volta e
+ritrovarsi il fix ovunque.
+
+Non tocca niente se c'è un backup in corso (cambiare uno script mentre gira lo
+fa saltare a metà: bash rilegge il file dall'offset in cui si trova) né se ci
+sono modifiche locali non salvate. Accetta solo avanzamenti lineari: se la
+storia è divergente si ferma e avvisa. Quando cambia il cruscotto lo riavvia da
+solo. Il registro sta in `<DIR_LOG>/aggiornamenti.log`.
+
+Per aggiornare subito: `bin/aggiorna.sh`

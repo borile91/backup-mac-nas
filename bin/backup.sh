@@ -23,7 +23,8 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
-if pgrep -f "restic backup /" >/dev/null 2>&1; then
+# senza percorso: la guardia vale anche se PERCORSI_BACKUP non e' "/"
+if pgrep -f "restic backup" >/dev/null 2>&1; then
   echo "backup già in corso, salto questo avvio ($(date))"
   exit 0
 fi
@@ -34,7 +35,9 @@ export RESTIC_CACHE_DIR="/var/root/.cache/restic"
 # senza un terminale restic non stampa la progressione: cosi' scrive una riga al minuto
 export RESTIC_PROGRESS_FPS=0.0167
 
-ESCLUSIONI_FILE="$(dirname "$0")/../esclusioni.txt"
+ESCLUSIONI_FILE="${ESCLUSIONI_FILE:-$(dirname "$0")/../esclusioni.txt}"
+# cosa salvare: tutto il disco, salvo diversa indicazione in configurazione
+PERCORSI="${PERCORSI_BACKUP:-/}"
 
 rm -f "/tmp/backup_mac_nas.done"
 {
@@ -58,7 +61,8 @@ rm -f "/tmp/backup_mac_nas.done"
   fi
 
   esegui_backup() {
-    r backup / --verbose --retry-lock=10m --one-file-system --exclude-caches \
+    # shellcheck disable=SC2086
+    r backup $PERCORSI --verbose --retry-lock=10m --one-file-system --exclude-caches \
       --exclude-file="$ESCLUSIONI_FILE"
   }
 
@@ -119,6 +123,9 @@ riuscito "${esito:-1}" && touch "$SENTINELLA_OK"
 
 NOTIFICA="${NOTIFICA_CMD:-$(dirname "$0")/notifica.sh}"
 precedente=$(tail -2 "$STORICO" | head -1 | cut -f3)
+# al primo run quella riga e' l'intestazione ("esito"), non un codice: senza
+# questo controllo partirebbe un "di nuovo OK" senza che nulla fosse fallito
+case "$precedente" in ''|*[!0-9]*) precedente="" ;; esac
 if ! riuscito "${esito:-1}"; then
   motivo=$(grep -E 'Fatal|unable to create lock|is already locked|Operation timed out' "$LOG" | tail -1 | cut -c1-160)
   "$NOTIFICA" "Backup $NOME_MACCHINA FALLITO" \
