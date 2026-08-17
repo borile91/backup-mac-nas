@@ -91,11 +91,14 @@ HOME_UTENTE = CFG.get("HOME_UTENTE") or os.path.expanduser("~")
 DIR_LOG = CFG.get("DIR_LOG") or os.path.join(HOME_UTENTE, "Library/Logs/backup-mac-nas")
 QUESTA_MACCHINA = CFG.get("NOME_MACCHINA") or socket.gethostname()
 
-LOG = "/tmp/backup_mac_nas.log"
+LOG = CFG.get("LOG_FILE") or "/tmp/backup_mac_nas.log"
 STORICO = os.path.join(DIR_LOG, "storico.tsv")
 # tasto "avvia backup": una riga di crontab controlla questo file e, quando
 # cambia, lancia il backup — cosi' il cruscotto non ha bisogno di sudo.
-TRIGGER = "/tmp/backup_mac_nas_trigger"
+# I due percorsi qui sotto sono il raccordo con gli script che girano da
+# crontab. Si possono ridefinire nella configurazione per affiancare il
+# cruscotto a un'installazione preesistente che usa altri nomi.
+TRIGGER = CFG.get("TRIGGER_FILE") or "/tmp/backup_mac_nas_trigger"
 RESTORE_DIR = os.path.join(HOME_UTENTE, "Restore")
 
 # gli snapshot si leggono dal NAS: lenti, quindi tenuti in cache
@@ -225,7 +228,8 @@ def time_machine_esclusioni():
     return re.findall(r'"([^"]*)"', p.stdout)
 
 
-TM_PLIST = os.path.join(HOME_UTENTE, "Library/LaunchAgents/com.backup-mac-nas.tm.plist")
+TM_PLIST = CFG.get("TM_PLIST") or os.path.join(
+    HOME_UTENTE, "Library/LaunchAgents/com.backup-mac-nas.tm.plist")
 TM_STORICO = os.path.join(DIR_LOG, "tm-storico.tsv")
 # gli script stanno accanto al cruscotto, nel repository
 DIR_BIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bin")
@@ -614,8 +618,8 @@ def tm_esclusione_percorso(percorso):
 # Stessa soluzione già usata per il backup: una riga nel crontab di root, che
 # è esente da quel gate. Qui il server scrive la richiesta in una coda e
 # aspetta il risultato (max ~1 minuto di cadenza cron + esecuzione).
-CODA_TM = "/tmp/tm_esclusioni_coda"
-RISULTATI_TM = "/tmp/tm_esclusioni_risultati"
+CODA_TM = CFG.get("TM_CODA") or "/tmp/tm_esclusioni_coda"
+RISULTATI_TM = CFG.get("TM_CODA_RISULTATI") or "/tmp/tm_esclusioni_risultati"
 
 
 def tm_imposta_esclusione(percorso, escludi):
