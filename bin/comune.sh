@@ -9,10 +9,23 @@
 # NAS): per impostazione predefinita ~/.config/backup-mac-nas/config.env,
 # oppure il percorso indicato da BACKUP_CONFIG.
 
-CONFIG="${BACKUP_CONFIG:-$HOME/.config/backup-mac-nas/config.env}"
+# Dove cercare la configurazione. Il backup gira come root dal crontab, e li'
+# $HOME e' /var/root: cercarla solo nella home del processo la renderebbe
+# invisibile proprio al job piu' importante, che fallirebbe in silenzio. Quindi
+# si guarda anche nelle home degli utenti veri.
+CONFIG="${BACKUP_CONFIG:-}"
+if [ -z "$CONFIG" ]; then
+  for candidato in \
+      "$HOME/.config/backup-mac-nas/config.env" \
+      ${SUDO_USER:+"/Users/$SUDO_USER/.config/backup-mac-nas/config.env"} \
+      /Users/*/.config/backup-mac-nas/config.env; do
+    if [ -f "$candidato" ]; then CONFIG="$candidato"; break; fi
+  done
+fi
 
-if [ ! -f "$CONFIG" ]; then
-  echo "configurazione non trovata: $CONFIG" >&2
+if [ -z "$CONFIG" ] || [ ! -f "$CONFIG" ]; then
+  echo "configurazione non trovata${CONFIG:+: $CONFIG}" >&2
+  echo "cercata in ~/.config/backup-mac-nas/config.env e nelle home di /Users" >&2
   echo "copia config.esempio.env e compilalo, oppure esegui ./installa.sh" >&2
   exit 1
 fi
