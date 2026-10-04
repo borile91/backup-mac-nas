@@ -38,6 +38,8 @@
 /Users/*/Library/Containers/com.utmapp.UTM
 /Users/*/Library/Containers/com.docker.docker
 /Users/*/Library/Application Support/Claude/vm_bundles
+/Users/*/Virtual Machines.localized
+/Users/*/Parallels
 
 # --- backup dei dispositivi iOS: pesanti e ricreabili ------------------------
 /Users/*/Library/Application Support/MobileSync/Backup
