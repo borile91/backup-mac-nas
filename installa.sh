@@ -142,6 +142,9 @@ if [ "$(chiedi "   procedo? (S/n)" "S")" != "n" ]; then
   echo "   crontab di root aggiornato"
 
   mkdir -p "$AGENTI"
+  # TM_GIORNO vuoto = ogni giorno; altrimenti 0/7 domenica, 1 lunedi'... (convenzione launchd)
+  orario_tm="<key>Hour</key><integer>${TM_ORA:-5}</integer><key>Minute</key><integer>0</integer>"
+  [ -n "${TM_GIORNO:-}" ] && orario_tm="<key>Weekday</key><integer>$TM_GIORNO</integer>$orario_tm"
   cat > "$AGENTI/com.backup-mac-nas.tm.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -151,7 +154,7 @@ if [ "$(chiedi "   procedo? (S/n)" "S")" != "n" ]; then
     <key>ProgramArguments</key>
     <array><string>/bin/bash</string><string>$DIR/bin/tm-backup.sh</string></array>
     <key>StartCalendarInterval</key>
-    <dict><key>Hour</key><integer>5</integer><key>Minute</key><integer>0</integer></dict>
+    <dict>$orario_tm</dict>
     <key>StandardOutPath</key><string>$DIR_LOG/tm-backup.log</string>
     <key>StandardErrorPath</key><string>$DIR_LOG/tm-backup.log</string>
 </dict>
